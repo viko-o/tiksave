@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="theme-color" content="#080810" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>TikSave — TikTok无水印下载</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080810; --card: #13131f;
+      --border: rgba(255,255,255,0.07);
+      --pink: #ff2d78; --cyan: #00e5ff; --yellow: #ffe135;
+      --text: #f0f0f8; --muted: #6b6b88;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh; overflow-x: hidden;
+      /* safe area for iOS notch */
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* ── Background orbs ── */
+    .bg-orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .orb { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.15; animation: drift 18s ease-in-out infinite alternate; }
+    .orb-1 { width: 500px; height: 500px; background: var(--pink); top: -150px; left: -100px; animation-duration: 20s; }
+    .orb-2 { width: 400px; height: 400px; background: var(--cyan); bottom: -100px; right: -80px; animation-duration: 24s; animation-delay: -6s; }
+    .orb-3 { width: 250px; height: 250px; background: var(--yellow); top: 45%; left: 55%; animation-duration: 16s; animation-delay: -3s; }
+    @keyframes drift { from{transform:translate(0,0)} to{transform:translate(40px,-30px)} }
+
+    .page { position: relative; z-index: 1; }
+
+    /* ── Nav ── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.2rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; background: linear-gradient(90deg, var(--pink), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo span { -webkit-text-fill-color: var(--yellow); }
+    .badge { font-size: 0.68rem; letter-spacing: 1px; background: rgba(255,45,120,0.12); color: var(--pink); border: 1px solid rgba(255,45,120,0.25); padding: 0.3em 0.75em; border-radius: 20px; text-transform: uppercase; }
+
+    /* ── Hero ── */
+    .hero { text-align: center; padding: 4rem 1.5rem 2.5rem; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2); color: var(--cyan); font-size: 0.72rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; padding: 0.4em 1em; border-radius: 20px; margin-bottom: 1.5rem; animation: fadeUp 0.6s ease both; }
+    .eyebrow::before { content: '●'; font-size: 0.5rem; animation: blink 1.4s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    h1 { font-family: 'Syne', sans-serif; font-size: clamp(2rem, 8vw, 4.5rem); font-weight: 800; line-height: 1.08; letter-spacing: -1.5px; margin-bottom: 1rem; animation: fadeUp 0.6s 0.1s ease both; }
+    h1 em { font-style: normal; background: linear-gradient(135deg, var(--pink), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .sub { color: var(--muted); font-size: 0.95rem; max-width: 480px; margin: 0 auto 2rem; line-height: 1.7; animation: fadeUp 0.6s 0.2s ease both; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Input ── */
+    .input-wrap { max-width: 680px; margin: 0 auto; padding: 0 1rem; animation: fadeUp 0.6s 0.3s ease both; }
+    .input-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 0.45rem; display: flex; flex-direction: column; gap: 0.45rem; box-shadow: 0 0 50px rgba(255,45,120,0.08), 0 4px 30px rgba(0,0,0,0.5); transition: box-shadow 0.3s; }
+    .input-card:focus-within { box-shadow: 0 0 0 2px rgba(255,45,120,0.3), 0 0 50px rgba(255,45,120,0.12), 0 4px 30px rgba(0,0,0,0.5); }
+    #url-input { width: 100%; background: transparent; border: none; outline: none; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 1rem; padding: 0.9rem 1.1rem 0.5rem; }
+    #url-input::placeholder { color: var(--muted); }
+    .input-bottom { display: flex; align-items: center; gap: 0.4rem; padding: 0 0.4rem 0.4rem; }
+    .btn-paste { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--muted); border-radius: 10px; padding: 0.65rem 1rem; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s, color 0.2s; white-space: nowrap; }
+    .btn-paste:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+    .btn-paste svg { width: 14px; height: 14px; }
+    .btn-go { flex: 1; background: linear-gradient(135deg, var(--pink), #c8006e); color: #fff; border: none; cursor: pointer; padding: 0.8rem 1.2rem; border-radius: 12px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; transition: transform 0.15s, filter 0.15s, box-shadow 0.15s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn-go:hover { filter: brightness(1.1); box-shadow: 0 4px 20px rgba(255,45,120,0.4); }
+    .btn-go:active { transform: scale(0.97); }
+    .btn-go svg { width: 18px; height: 18px; }
+    .hint { margin-top: 0.8rem; color: var(--muted); font-size: 0.78rem; text-align: center; }
+
+    /* ── Feature pills ── */
+    .features { display: flex; justify-content: center; gap: 0.6rem; flex-wrap: wrap; padding: 1.8rem 1rem 0; margin-bottom: 0.5rem; }
+    .feat { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: var(--muted); background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 0.35em 0.8em; border-radius: 20px; }
+    .feat svg { width: 12px; height: 12px; color: var(--cyan); }
+
+    /* ── Loading ── */
+    #loading { display: none; text-align: center; padding: 3rem 1.5rem; }
+    #loading.on { display: block; animation: fadeUp 0.3s ease both; }
+    .spinner { width: 44px; height: 44px; margin: 0 auto 1.2rem; border: 3px solid rgba(255,45,120,0.2); border-top-color: var(--pink); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .loading-text { color: var(--muted); font-size: 0.88rem; }
+
+    /* ── Error ── */
+    #error-box { display: none; max-width: 680px; margin: 1.5rem auto; padding: 0 1rem; }
+    #error-box.on { display: block; animation: fadeUp 0.3s ease both; }
+    .error-inner { background: rgba(255,45,120,0.08); border: 1px solid rgba(255,45,120,0.25); border-radius: 14px; padding: 1rem 1.2rem; color: #ff7aaa; font-size: 0.88rem; line-height: 1.6; }
+    .error-inner strong { display: block; margin-bottom: 0.3rem; }
+
+    /* ── Result ── */
+    #result { padding: 2rem 1rem 4rem; max-width: 680px; margin: 0 auto; display: none; }
+    #result.on { display: block; animation: fadeUp 0.5s ease both; }
+    .result-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; }
+
+    .vinfo { display: flex; gap: 1rem; align-items: flex-start; padding: 1.2rem; border-bottom: 1px solid var(--border); }
+    .thumb { flex-shrink: 0; width: 80px; height: 108px; border-radius: 10px; overflow: hidden; background: #1a1a2e; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .vmeta { flex: 1; min-width: 0; }
+    .vauthor { font-size: 0.75rem; color: var(--cyan); font-weight: 500; margin-bottom: 0.3rem; }
+    .vtitle { font-size: 0.88rem; line-height: 1.5; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .vstats { display: flex; gap: 0.8rem; margin-top: 0.6rem; flex-wrap: wrap; }
+    .stat { font-size: 0.72rem; color: var(--muted); }
+
+    .dl-list { padding: 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
+    .dl-btn {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.95rem 1.1rem; border-radius: 12px; border: 1px solid var(--border);
+      cursor: pointer; transition: background 0.2s, border-color 0.2s, transform 0.15s;
+      background: rgba(255,255,255,0.03);
+      /* larger tap target on mobile */
+      min-height: 60px;
+    }
+    .dl-btn:hover, .dl-btn:active { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.15); }
+    .dl-btn:active { transform: scale(0.98); }
+    .dl-left { display: flex; align-items: center; gap: 0.8rem; }
+    .dl-ico { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .dl-ico svg { width: 18px; height: 18px; }
+    .ico-hd  { background: rgba(255,45,120,0.15); color: var(--pink); }
+    .ico-wm  { background: rgba(0,229,255,0.12);  color: var(--cyan); }
+    .ico-mp3 { background: rgba(255,225,53,0.12); color: var(--yellow); }
+    .dl-label { font-weight: 500; font-size: 0.9rem; color: var(--text); }
+    .dl-sub   { font-size: 0.73rem; color: var(--muted); margin-top: 0.1rem; }
+    .dl-arrow { color: var(--muted); flex-shrink: 0; }
+
+    .dl-progress { display: none; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.07); overflow: hidden; margin-top: 0.4rem; }
+    .dl-progress.show { display: block; }
+    .dl-progress-bar { height: 100%; width: 0%; border-radius: 3px; background: linear-gradient(90deg, var(--pink), var(--cyan)); transition: width 0.3s; }
+
+    /* ── Steps ── */
+    .steps { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin: 3.5rem auto; max-width: 680px; padding: 0 1rem; }
+    .step { text-align: center; }
+    .step-num { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.95rem; margin: 0 auto 0.7rem; }
+    .step:nth-child(1) .step-num { background: rgba(255,45,120,0.15); color: var(--pink); border: 1px solid rgba(255,45,120,0.3); }
+    .step:nth-child(2) .step-num { background: rgba(0,229,255,0.12); color: var(--cyan); border: 1px solid rgba(0,229,255,0.25); }
+    .step:nth-child(3) .step-num { background: rgba(255,225,53,0.12); color: var(--yellow); border: 1px solid rgba(255,225,53,0.25); }
+    .step-label { font-size: 0.82rem; color: var(--muted); max-width: 110px; line-height: 1.5; }
+
+    hr.div { border: none; border-top: 1px solid var(--border); max-width: 680px; margin: 0 auto; }
+    footer { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: 0.75rem; line-height: 1.8; }
+  </style>
+</head>
+<body>
+<div class="bg-orbs">
+  <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+</div>
+<div class="page">
+  <nav>
+    <div class="logo">Tik<span>Save</span></div>
+    <span class="badge">免费 · 无水印</span>
+  </nav>
+
+  <section class="hero">
+    <div class="eyebrow">快速 · 免费 · 无限制</div>
+    <h1>下载 TikTok<br/><em>无水印视频</em></h1>
+    <p class="sub">粘贴任意 TikTok 链接，一键下载无水印高清视频或提取背景音乐。</p>
+  </section>
+
+  <div class="input-wrap">
+    <div class="input-card">
+      <input id="url-input" type="url" inputmode="url"
+        placeholder="粘贴 TikTok 链接…"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <div class="input-bottom">
+        <button class="btn-paste" onclick="paste()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/></svg>
+          粘贴链接
+        </button>
+        <button class="btn-go" onclick="go()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          解析下载
+        </button>
+      </div>
+    </div>
+    <p class="hint">支持 tiktok.com / vm.tiktok.com</p>
+  </div>
+
+  <div class="features">
+    <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>完全免费</div>
+    <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>无需登录</div>
+    <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>高清无水印</div>
+    <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>手机电脑均可</div>
+  </div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <p class="loading-text">正在解析视频，请稍候…</p>
+  </div>
+
+  <div id="error-box">
+    <div class="error-inner">
+      <strong>⚠ 出错了</strong>
+      <span id="err-msg"></span>
+    </div>
+  </div>
+
+  <section id="result">
+    <div class="result-card">
+      <div class="vinfo">
+        <div class="thumb" id="r-thumb">🎵</div>
+        <div class="vmeta">
+          <div class="vauthor" id="r-author"></div>
+          <div class="vtitle"  id="r-title"></div>
+          <div class="vstats"  id="r-stats"></div>
+        </div>
+      </div>
+      <div class="dl-list" id="r-dls"></div>
+    </div>
+  </section>
+
+  <hr class="div" />
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-label">复制 TikTok 视频链接</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-label">粘贴到输入框解析</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-label">点击按钮保存到手机</div></div>
+  </div>
+  <footer><p>TikSave 仅供个人学习使用，请遵守平台版权规定。</p></footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const inp = $('url-input');
+
+inp.addEventListener('keydown', e => { if(e.key==='Enter') go(); });
+
+// 粘贴按钮（手机上特别有用）
+async function paste() {
+  try {
+    const t = await navigator.clipboard.readText();
+    if (t) { inp.value = t; inp.focus(); }
+  } catch {
+    inp.focus();
+    document.execCommand('paste');
+  }
+}
+
+// 页面加载时自动读取剪贴板
+window.addEventListener('focus', async () => {
+  try {
+    const t = await navigator.clipboard.readText();
+    if (!inp.value && (t.includes('tiktok.com') || t.includes('vm.tiktok'))) {
+      inp.value = t;
+    }
+  } catch {}
+});
+
+function fmt(n) {
+  n = parseInt(n)||0;
+  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return n;
+}
+function setLoading(v) { $('loading').classList.toggle('on', v); }
+function showErr(msg) {
+  setLoading(false);
+  $('err-msg').textContent = msg;
+  $('error-box').classList.add('on');
+}
+
+async function go() {
+  const url = inp.value.trim();
+  if (!url) { inp.focus(); return; }
+  if (!url.includes('tiktok.com') && !url.includes('vm.tiktok')) {
+    showErr('请输入有效的 TikTok 链接');
+    return;
+  }
+  setLoading(true);
+  $('error-box').classList.remove('on');
+  $('result').classList.remove('on');
+
+  try {
+    const res  = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
+    const json = await res.json();
+    setLoading(false);
+    if (!json || json.code !== 0 || !json.data) {
+      showErr(json?.msg || '解析失败，请确认链接正确后重试。');
+      return;
+    }
+    render(json.data);
+  } catch(e) {
+    showErr('请求失败：' + e.message);
+  }
+}
+
+async function dlFile(videoUrl, filename, btnEl, progEl, barEl) {
+  btnEl.style.opacity = '0.6';
+  btnEl.style.pointerEvents = 'none';
+  progEl.classList.add('show');
+  barEl.style.width = '15%';
+
+  try {
+    const ext = filename.endsWith('.mp3') ? 'audio' : 'video';
+    const dlUrl = `/api/proxy?action=download&url=${encodeURIComponent(videoUrl)}&filename=${encodeURIComponent(filename)}`;
+    const res = await fetch(dlUrl);
+    if (!res.ok) throw new Error('服务器错误 ' + res.status);
+    barEl.style.width = '55%';
+    const blob = await res.blob();
+    barEl.style.width = '90%';
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+    barEl.style.width = '100%';
+    barEl.style.background = '#4caf50';
+    setTimeout(() => {
+      progEl.classList.remove('show');
+      barEl.style.width = '0%'; barEl.style.background = '';
+      btnEl.style.opacity = ''; btnEl.style.pointerEvents = '';
+    }, 1600);
+  } catch(e) {
+    showErr('下载出错：' + e.message);
+    progEl.classList.remove('show');
+    btnEl.style.opacity = ''; btnEl.style.pointerEvents = '';
+  }
+}
+
+function render(d) {
+  const tb = $('r-thumb');
+  if (d.cover || d.origin_cover) {
+    tb.innerHTML = `<img src="${d.cover||d.origin_cover}" alt="封面" onerror="this.parentElement.innerHTML='🎵'" />`;
+  }
+  $('r-author').textContent = '@' + (d.author?.unique_id || d.author?.nickname || '未知');
+  $('r-title').textContent  = d.title || '无标题';
+  $('r-stats').innerHTML = [
+    d.digg_count    ? `❤ ${fmt(d.digg_count)}` : '',
+    d.comment_count ? `💬 ${fmt(d.comment_count)}` : '',
+    d.share_count   ? `↗ ${fmt(d.share_count)}` : '',
+  ].filter(Boolean).map(s=>`<span class="stat">${s}</span>`).join('');
+
+  const author = (d.author?.unique_id||'video').replace(/[^a-z0-9_]/gi,'_');
+
+  const items = [];
+  if (d.play) items.push({ url: d.play, ico:'ico-hd', svg:vSVG(), label:'无水印视频 (HD)', sub:'高清 MP4 · 无水印', filename:`tiksave_${author}_hd.mp4` });
+  if (d.wmplay) items.push({ url: d.wmplay, ico:'ico-wm', svg:vSVG(), label:'有水印视频', sub:'标准 MP4 · 含水印', filename:`tiksave_${author}_wm.mp4` });
+  if (d.music) items.push({ url: d.music, ico:'ico-mp3', svg:mSVG(), label:'背景音乐 (MP3)', sub: d.music_info?.title||'音频', filename:`tiksave_${author}_music.mp3` });
+
+  const arw = `<svg class="dl-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+
+  $('r-dls').innerHTML = items.map((it,i)=>`
+    <div>
+      <div class="dl-btn" id="b${i}" onclick="handleDl(${i})">
+        <div class="dl-left">
+          <div class="dl-ico ${it.ico}">${it.svg}</div>
+          <div><div class="dl-label">${it.label}</div><div class="dl-sub">${it.sub}</div></div>
+        </div>${arw}
+      </div>
+      <div class="dl-progress" id="p${i}"><div class="dl-progress-bar" id="pb${i}"></div></div>
+    </div>`).join('');
+
+  window._items = items;
+  $('result').classList.add('on');
+  $('result').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function handleDl(i) {
+  const it = window._items[i];
+  dlFile(it.url, it.filename, $('b'+i), $('p'+i), $('pb'+i));
+}
+
+function vSVG(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`; }
+function mSVG(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`; }
+</script>
+</body>
+</html>
